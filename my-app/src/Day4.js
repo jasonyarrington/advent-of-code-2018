@@ -118,6 +118,12 @@ class Day4 extends ComponentBase {
             minutesAsleep: 0
         };
 
+        let maxMinuteRecord = {
+            guardId : null,
+            minutesAsleep: 0,
+            minute: null
+        }
+
         // Looping through boxes
         for (let log of logs) {
             let record = this.recordProcessor(log);
@@ -138,6 +144,11 @@ class Day4 extends ComponentBase {
                 for (let min = sleep.minute; min < wake.minute; min++ ) {
                     guardRecords[start.guardId].min[min]++;
                     guardRecords[start.guardId].minutesAsleep++;
+                    if (guardRecords[start.guardId].min[min] > maxMinuteRecord.minutesAsleep) {
+                        maxMinuteRecord.guardId = start.guardId;
+                        maxMinuteRecord.minutesAsleep = guardRecords[start.guardId].min[min];
+                        maxMinuteRecord.minute = min;
+                    }
                 }
                 if (maxSleeper.minutesAsleep < guardRecords[start.guardId].minutesAsleep) {
                     maxSleeper.minutesAsleep = guardRecords[start.guardId].minutesAsleep;
@@ -178,7 +189,12 @@ class Day4 extends ComponentBase {
         answers.push({
             label: 'GuardID times minutes',
             value: maxSleeper.guardId * maxMinute
-        })
+        });
+
+        answers.push({
+            label: 'GuardId asleep on which minute',
+            value: 'Guard:: ' + maxMinuteRecord.guardId + " minute:: " + maxMinuteRecord.minute + " quotient:: " + maxMinuteRecord.guardId * maxMinuteRecord.minute
+        });
         //
         // answers.push({
         //     label: 'Non-overlapped boxes',
