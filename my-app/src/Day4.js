@@ -1,12 +1,12 @@
 import React from "react";
-import data from "./input/3-1.txt";
-import testData from "./input/3-1-test.txt";
+import data from "./input/4-1.txt";
+import testData from "./input/4-1-test.txt";
 import ComponentBase from "./ComponentBase";
 
 
 class Day4 extends ComponentBase {
 
-    test = true;
+    test = false;
 
     d = this.test ? testData : data;
 
@@ -27,93 +27,137 @@ class Day4 extends ComponentBase {
     // Called from componentDidMount
     parseRecords = (text) => {
 
-        // Split on rows
-        let items = {};
+        this.state.display = this.state.display || '';
 
+        // Split on rows
         let records = this.parseFile(text);
 
+        // Sort array
+        records.sort();
+
         for (let [key, value] of records.entries()) {
-            let temp = value.split(" ");
-
-            let id = parseFloat(temp[0].substr(1));
-            let position = temp[2].split(",");
-            let size = temp[3].split("x");
-            let coords = {};
-
-            position = {
-                x: parseFloat(position[0]),
-                y: parseFloat(position[1])
-            }
-
-            size = {
-                w: parseFloat(size[0]),
-                h: parseFloat(size[1])
-            }
-
-            for (let x = position.x; x < position.x + size.w; x++) {
-                for (let y = position.y; y < position.y + size.h; y++ ) {
-                    coords[x] = coords[x] || {};
-                    coords[x][y] = true;
-                }
-            }
-
-            let record = {
-                id : id,
-                position: position,
-                size: size,
-                coords: coords
-            }
-            items[id] = record;
+            this.state.display += value + "\n";
         }
 
-        console.log("items::", items);
-        return items;
+        return records;
     }
+
+    recordProcessor = (record) => {
+
+        // timestamp
+        let timeStampRegex = /\[(.*?)\]/;
+        let temp = timeStampRegex.exec(record);
+        let timestamp = temp[1];
+
+        let hour = timestamp.substr(11, 2);
+        let minute = timestamp.substr(14,2);
+        let day = timestamp.substr(0, 10);
+
+        this.state.display += timestamp + " " + day + " " + hour + " " + minute + " ";
+
+        // Record value
+        let value = record.replace(timeStampRegex, "").trim();
+
+        this.state.display += value;
+
+        let recordType = null;
+
+        let guardId = null;
+
+        // Record type
+        if (recordType = /Guard/.exec(value)) {
+            this.state.display += " -- guard";
+            recordType = 'guard';
+            guardId = value.match(/#[0-9]*/);
+            guardId = guardId[0].substr(1);
+        } else if (recordType = /wakes up/.exec(value)) {
+            this.state.display += " -- wake";
+            recordType = 'wake';
+        } else if (recordType = /falls asleep/.exec(value)) {
+            this.state.display += " -- sleep";
+            recordType = 'sleep';
+        }
+
+        this.state.display += "\n";
+
+        return {
+            timestamp: timestamp,
+            recordType: recordType,
+            guardId: guardId,
+            day: day,
+            hour: hour,
+            minute: parseInt(minute)
+        }
+    }
+
+    maxMinute = (record) => {
+
+        let max = 0;
+        let index = null;
+        for (let i = 0; i < record.min.length; i++) {
+            if (record.min[i] > max) {
+                max = record.min[i];
+                index = i;
+            }
+        }
+
+        return index;
+    }
+
 
     process = (text) => {
 
-        let boxes = this.parseRecords(text);
+        let logs = this.parseRecords(text);
 
-        let masterBox = {};
-
-        let count = 0;
-
-        let nonOverlappedBoxes = {};
+        let start;
+        let sleep;
+        let wake;
+        let guardRecords = {};
+        let maxSleeper = {
+            guardId : null,
+            minutesAsleep: 0
+        };
 
         // Looping through boxes
+        for (let log of logs) {
+            let record = this.recordProcessor(log);
 
-        for (let key of Object.keys(boxes)) {
-            let box = boxes[key];
-            box.overlap = box.overlap || false;
-
-            for (let x = box.position.x; x < box.position.x + box.size.w; x++) {
-                masterBox[x] = masterBox[x] || {};
-
-                for (let y = box.position.y; y < box.position.y + box.size.h; y++) {
-                    masterBox[x][y] = masterBox[x][y] || {ids: [], count: 0};
-                    masterBox[x][y].ids.push(box.id);
-                    masterBox[x][y].count++;
-                    if (masterBox[x][y].count > 1) {
-                        // debugger;
-                        count++;
-                        for (let id of masterBox[x][y].ids) {
-                            boxes[id].overlap = true;
-                        }
-                        //break;
+            if (record.recordType === 'guard') {
+                start = record;
+                if (guardRecords[start.guardId] === undefined) {
+                    guardRecords[start.guardId] = { shifts : 0, minutesAsleep : 0, min : []};
+                    for (let min = 0; min < 60; min++) {
+                        guardRecords[start.guardId].min[min] = 0;
                     }
+                }
+                guardRecords[start.guardId].shifts++;
+            } else if (record.recordType === 'sleep') {
+                sleep = record;
+            } else if (record.recordType === 'wake') {
+                wake = record;
+                for (let min = sleep.minute; min < wake.minute; min++ ) {
+                    guardRecords[start.guardId].min[min]++;
+                    guardRecords[start.guardId].minutesAsleep++;
+                }
+                if (maxSleeper.minutesAsleep < guardRecords[start.guardId].minutesAsleep) {
+                    maxSleeper.minutesAsleep = guardRecords[start.guardId].minutesAsleep;
+                    maxSleeper.guardId = start.guardId;
                 }
             }
         }
 
-        for (let key of Object.keys(boxes)) {
-            let box = boxes[key];
-            if (!box.overlap) {
-                nonOverlappedBoxes[box.id] = true;
-            }
-        }
-        console.log(boxes);
+        for (let r of Object.keys(guardRecords)) {
 
-        console.log(masterBox);
+            this.state.display += r + ' ' + guardRecords[r].shifts + ' ';
+            for (let min of guardRecords[r].min) {
+                this.state.display += min;
+            }
+            this.state.display += "\n";
+        }
+
+        let maxMinute = this.maxMinute(guardRecords[maxSleeper.guardId]);
+
+
 
         // this.drawBoxes(boxes);
         //
@@ -122,14 +166,24 @@ class Day4 extends ComponentBase {
         let answers = [];
 
         answers.push({
-            label: 'Square inches with overlap',
-            value: count
+            label: 'Guard asleep the most',
+            value: maxSleeper.guardId
         })
 
         answers.push({
-            label: 'Non-overlapped boxes',
-            value: JSON.stringify(nonOverlappedBoxes)
+            label: 'Guard asleep most at minute',
+            value:  maxMinute
         })
+
+        answers.push({
+            label: 'GuardID times minutes',
+            value: maxSleeper.guardId * maxMinute
+        })
+        //
+        // answers.push({
+        //     label: 'Non-overlapped boxes',
+        //     value: JSON.stringify(nonOverlappedBoxes)
+        // })
 
         this.setState({
             isLoaded: true,
