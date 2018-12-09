@@ -9,7 +9,8 @@ class ComponentBase extends React.Component {
         this.state = {
             error: null,
             isLoaded: false,
-            answers: []
+            answers: [],
+            display: ""
         }
     }
 
@@ -65,6 +66,15 @@ class ComponentBase extends React.Component {
 
     process = (text) => {
         // Override and place results in answers
+    }
+
+    pushDisplay = (text, appendLine) => {
+
+        this.state.display += text;
+
+        if (!appendLine) {
+            this.state.display += "\n";
+        }
     }
 }
 
